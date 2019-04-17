@@ -42,6 +42,8 @@ void setup() {
   Serial.println("");
   Serial.println("Initializing...");
   Serial.println("");
+  Serial.print("Calibration factor set to ");
+  Serial.println(calibration_factor);
   
   pinMode(PINS_DRIVER1[0], OUTPUT);
   pinMode(PINS_DRIVER1[1], OUTPUT);
@@ -60,6 +62,7 @@ void setup() {
   pinMode(PINS_DISPLAY_SELECT2[0], OUTPUT);
   pinMode(PINS_DISPLAY_SELECT2[1], OUTPUT);
   pinMode(PINS_DISPLAY_SELECT2[2], OUTPUT);
+  Serial.print("IO pin modes set.");
   
   setUnitLbs();
   startScale();
@@ -75,6 +78,8 @@ void startScale() {
   scale.set_scale();
   scale.tare();
   zero_factor = scale.read_average();
+  Serial.print("Zero factor set to ");
+  Serial.println(zero_factor);
   delay(500);
   Serial.println("Scale initialized.");
 }
