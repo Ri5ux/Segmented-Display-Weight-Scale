@@ -31,7 +31,7 @@ int displayBufDrv2[DISPLAYS] = { -1, -1, -1 };
 
 HX711 scale;
 float calibration_factor = -5280;
-float scaleValue;
+float scaleValue = 0;
 long zero_factor;
 boolean calibrationMode = false;
 
@@ -153,7 +153,10 @@ void loop() {
 
 void updateWeight() {
   int weight = round(scaleValue);
-  int d1, d2, d3, d4 = 0;
+  int d1 = 0;
+  int d2 = 0;
+  int d3 = 0;
+  int d4 = 0;
   
   if (weight > 0) {
     d1 = (weight / 1000) % 10;
@@ -162,12 +165,23 @@ void updateWeight() {
     d4 = weight % 10;
   }
 
-  if (d1 == 0) d1 = -1;
-  if (d2 == 0) d2 = -1;
-  if (d3 == 0) d3 = -1;
+  if (weight <= 999) {
+    if (d1 == 0) d1 = -1;
+  }
+
+  if (weight <= 99) {
+    if (d2 == 0) d2 = -1;
+  }
+
+  if (weight <= 9) {
+    if (d3 == 0) d3 = -1;
+  }
 
   if (weight < 0) {
-    d1 = d2 = d3 = d4 = 0;
+    d1 = 0;
+    d2 = 0;
+    d3 = 0;
+    d4 = 0;
   }
   
   setWeightBuffer(d1, d2, d3, d4);
