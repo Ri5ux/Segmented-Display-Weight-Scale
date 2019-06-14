@@ -16,21 +16,21 @@ static const byte NUM_MATRIX[10][4] = {
 
 static const int DISPLAYS = 3;
 
-static const int PINS_DRIVER1[4] = { 2, 3, 4, 5 };
-static const int PINS_DRIVER2[4] = { 6, 9, 8, 7 };// B & D flipped
-static const int PINS_DISPLAY_SELECT1[DISPLAYS] = { 10, 11, 12 };
-static const int PINS_DISPLAY_SELECT2[DISPLAYS] = { 13, 14, 15 };
-static const int PIN_HX711_CLK = 16;
-static const int PIN_HX711_DAT = 17;
+int PINS_DRIVER1[4] = { 2, 3, 4, 5 };
+int PINS_DRIVER2[4] = { 6, 9, 8, 7 };// B & D flipped
+int PINS_DISPLAY_SELECT1[DISPLAYS] = { 10, 11, 12 };
+int PINS_DISPLAY_SELECT2[DISPLAYS] = { 13, 14, 15 };
+int PIN_HX711_CLK = 16;
+int PIN_HX711_DAT = 17;
 
 long previousMillis = 0;
 
 int activeDisplay = 1;
-int displayBufDrv1[DISPLAYS] = { -1, -1, -1 };
-int displayBufDrv2[DISPLAYS] = { -1, -1, -1 };
+static int displayBufDrv1[DISPLAYS] = { -1, -1, -1 };
+static int displayBufDrv2[DISPLAYS] = { -1, -1, -1 };
 
 HX711 scale;
-float calibration_factor = -5280;
+float calibration_factor = -5212;
 float scaleValue = 0;
 long zero_factor;
 boolean calibrationMode = false;
@@ -92,6 +92,7 @@ void loop() {
     
     scale.set_scale(calibration_factor);
     scaleValue = scale.get_units() + 0.07F;
+    updateWeight();
   }
   
   if (calibrationMode) {
@@ -117,25 +118,23 @@ void loop() {
     }
   }
   
-  if (Serial.available() > 0) {
+  if (Serial.available()) {
     String command = Serial.readStringUntil(' ');
     Serial.read();
+    Serial.print(">");
+    Serial.println(command);
     
     if (command == "calibrate") {
       calibrationMode = true;
       Serial.println("Entered calibration mode.");
       Serial.println("Use '+' or '-' to change the calibration by increments of 1.");
       Serial.println("Use '.' or ',' to change the calibration by increments of 10.");
-    }
-    if (command == "copyright") {
+    } else if (command == "copyright") {
       printCopyright();
-    }
-    if (command == "help") {
+    } else if (command == "help") {
       Serial.println("calibrate, copyright");
     }
   }
-
-  updateWeight();
 
   clearDriver(PINS_DRIVER1);
   clearDriver(PINS_DRIVER2);
@@ -166,15 +165,24 @@ void updateWeight() {
   }
 
   if (weight <= 999) {
-    if (d1 == 0) d1 = -1;
+    if (d1 == 0)
+    {
+      d1 = -1;
+    }
   }
 
   if (weight <= 99) {
-    if (d2 == 0) d2 = -1;
+    if (d2 == 0)
+    {
+      d2 = -1;
+    }
   }
 
   if (weight <= 9) {
-    if (d3 == 0) d3 = -1;
+    if (d3 == 0)
+    {
+      d3 = -1;
+    }
   }
 
   if (weight < 0) {
@@ -199,7 +207,7 @@ void setUnitLbs() {
   displayBufDrv2[2] = 6;
 }
 
-void processDriver(int selectPins[], int displayBuffer[], int driverPins) {
+void processDriver(int selectPins[], int displayBuffer[], int driverPins[]) {
   for (int displayId = 0; displayId < DISPLAYS; displayId++) {
     if (activeDisplay % DISPLAYS == displayId) {
       digitalWrite(selectPins[displayId], HIGH);
