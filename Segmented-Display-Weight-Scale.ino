@@ -30,17 +30,19 @@ static int displayBufDrv1[DISPLAYS] = { -1, -1, -1 };
 static int displayBufDrv2[DISPLAYS] = { -1, -1, -1 };
 
 HX711 scale;
-float calibration_factor = -5212;
+float calibration_factor = -5402.00;//-5212
 float scaleValue = 0;
 long zero_factor;
+boolean noUnit = false;
 boolean calibrationMode = false;
+boolean streamData = false;
+
+void(* resetFunc) (void) = 0;
 
 void setup() {
   Serial.begin(9600);
-  Serial.println("Multiplexed Display Scale Firmware Version 1.0");
+  Serial.println("4 Digit Weight Scale Controller");
   printCopyright();
-  Serial.println("");
-  Serial.println("Initializing...");
   Serial.println("");
   
   pinMode(PINS_DRIVER1[0], OUTPUT);
@@ -61,12 +63,10 @@ void setup() {
   pinMode(PINS_DISPLAY_SELECT2[1], OUTPUT);
   pinMode(PINS_DISPLAY_SELECT2[2], OUTPUT);
   
-  setUnitLbs();
   startScale();
 }
 
 void printCopyright() {
-  Serial.println("Copyright (C) 2019 ASX Electronics");
   Serial.println("Designed and built by Dustin Christensen");
 }
 
@@ -76,78 +76,92 @@ void startScale() {
   scale.tare();
   zero_factor = scale.read_average();
   delay(500);
-  Serial.println("Scale initialized.");
+  Serial.println("Init.");
 }
 
 void printCalibrationFactor() {
-  Serial.print("Calibration set to: ");
+  Serial.print("Calibration set: ");
   Serial.println(calibration_factor);
 }
 
 void loop() {
-  long currentMillis = millis();
-  
-  if(currentMillis - previousMillis > 100) {
-    previousMillis = currentMillis;
-    
-    scale.set_scale(calibration_factor);
-    scaleValue = scale.get_units() + 0.07F;
-    updateWeight();
-  }
-  
-  if (calibrationMode) {
-    if(Serial.available()) {
-      char temp = Serial.read();
-      
-      if(temp == '+') {
-        calibration_factor += 1;
-        printCalibrationFactor();
-      } else if(temp == '-') {
-        calibration_factor -= 1;
-        printCalibrationFactor();
-      } else if(temp == '.') {
-        calibration_factor += 10;
-        printCalibrationFactor();
-      } else if(temp == ',') {
-        calibration_factor -= 10;
-        printCalibrationFactor();
-      } else if(temp == 'x') {
-        calibrationMode = false;
-        Serial.println("Calibration mode disabled.");
-      }
-    }
-  }
-  
-  if (Serial.available()) {
+  if (Serial.available() > 0) {
     String command = Serial.readStringUntil(' ');
     Serial.read();
     Serial.print(">");
     Serial.println(command);
     
-    if (command == "calibrate") {
+    if (command == "reset") {
+      resetFunc();
+    } if (command == "cal") {
       calibrationMode = true;
-      Serial.println("Entered calibration mode.");
-      Serial.println("Use '+' or '-' to change the calibration by increments of 1.");
-      Serial.println("Use '.' or ',' to change the calibration by increments of 10.");
-    } else if (command == "copyright") {
-      printCopyright();
-    } else if (command == "help") {
-      Serial.println("calibrate, copyright");
+      Serial.println("Calibration mode (x: exit)");
+      Serial.println("Use '+' or '-' to calibrate(+/- 1)");
+      Serial.println("Use '.' or ',' to calibrate(+/- 10)");
+    } else if (command == "read") {
+      Serial.print("read: ");
+      Serial.println(scaleValue);
+    } else if (command == "clrunit") {
+      noUnit = !noUnit;
+    } else if (command == "stream") {
+      streamData = true;
     }
-  }
 
-  clearDriver(PINS_DRIVER1);
-  clearDriver(PINS_DRIVER2);
-  processDriver(PINS_DISPLAY_SELECT1, displayBufDrv1, PINS_DRIVER1);
-  processDriver(PINS_DISPLAY_SELECT2, displayBufDrv2, PINS_DRIVER2);
-  activeDisplay++;
+    if (calibrationMode) {
+      if(command == "+") {
+        calibration_factor += 1;
+        printCalibrationFactor();
+      } else if(command == "-") {
+        calibration_factor -= 1;
+        printCalibrationFactor();
+      } else if(command == ".") {
+        calibration_factor += 10;
+        printCalibrationFactor();
+      } else if(command == ",") {
+        calibration_factor -= 10;
+        printCalibrationFactor();
+      } else if(command == "x") {
+        calibrationMode = false;
+        Serial.println("Calibration disabled");
+      }
+    }
+  } else {
+    long currentMillis = millis();
     
-  if (activeDisplay > DISPLAYS)
-  {
-    activeDisplay = 1;
-  }
+    if(currentMillis - previousMillis > 200) {
+      previousMillis = currentMillis;
+      
+      scale.set_scale(calibration_factor);
+      scaleValue = scale.get_units() + 0.07F;
+      updateWeight();
   
-  delay(4);
+      if (!calibrationMode) {
+        if (streamData) {
+          Serial.print("value: ");
+          Serial.println(scaleValue);
+        }
+        if (!noUnit) {
+          setUnitLbs();
+        } else {
+          setNoUnit();
+        }
+      } else {
+        setNoUnit();
+      }
+    }
+    clearDriver(PINS_DRIVER1);
+    clearDriver(PINS_DRIVER2);
+    processDriver(PINS_DISPLAY_SELECT1, displayBufDrv1, PINS_DRIVER1);
+    processDriver(PINS_DISPLAY_SELECT2, displayBufDrv2, PINS_DRIVER2);
+    activeDisplay++;
+      
+    if (activeDisplay > DISPLAYS)
+    {
+      activeDisplay = 1;
+    }
+    
+    delay(4);
+  }
 }
 
 void updateWeight() {
@@ -205,6 +219,11 @@ void setWeightBuffer(int d1, int d2, int d3, int d4) {
 void setUnitLbs() {
   displayBufDrv2[1] = 1;
   displayBufDrv2[2] = 6;
+}
+
+void setNoUnit() {
+  displayBufDrv2[1] = -1;
+  displayBufDrv2[2] = -1;
 }
 
 void processDriver(int selectPins[], int displayBuffer[], int driverPins[]) {
