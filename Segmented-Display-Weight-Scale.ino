@@ -1,3 +1,6 @@
+/** Segmented Display Weight Scale (4-9-2019) **/
+/** OBSOLETE - SEE Segmented Display Module & RF Scale **/
+
 #include <HX711.h>
 #include <Wire.h>
 
